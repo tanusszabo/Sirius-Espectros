@@ -15,21 +15,36 @@ class Espectros:
 
     def get_spectrum_data(self, filename):
         """
-        Carrega dados de espectro de um arquivo.
+        Carrega dados de espectro de um arquivo, se for um arquivo de espectro válido.
 
         Args:
             filename (str): Caminho para o arquivo de espectro.
 
         Returns:
-            numpy.ndarray: Dados do espectro como um array numpy, onde a primeira coluna é a energia e a segunda é o fluxo.
+            numpy.ndarray: Dados do espectro como um array numpy, 
+                            onde a primeira coluna é a energia e a segunda é o fluxo.
+                            Retorna None se o arquivo não for um espectro válido.
         """
-        with open(filename, 'r') as f:
-            lines = f.readlines()
+        try:
+            with open(filename, 'r') as f:
+                lines = f.readlines()
+        except Exception as e:
+            return None
+
         spectrum_lines = []
         for line in lines:
             if '#' in line: continue
-            spectrum_lines.append([float(l) for l in line.split()])
-        return np.array(spectrum_lines)
+            try:
+                spectrum_lines.append([float(l) for l in line.split()])
+            except ValueError:
+                # print(f"Aviso: Linha inválida em {filename}: {line.strip()}")
+                return None  # Considera o arquivo inválido
+        
+        if spectrum_lines:
+            return np.array(spectrum_lines)
+        else:
+            # print(f"Aviso: Nenhuma linha de dados encontrada em {filename}")
+            return None
     
     def plot_spectrum_data(self, datas, energy_u='keV', flux_u='ph/s/eV', current=350, title=None, fileout=None):
         """
@@ -107,7 +122,7 @@ class Espectros:
         data[:,1] = flux_ev_data
         return data
 
-    def plot_folder_spectrum(self, folder, spectrum_type='bandwidth', energy_u='eV', flux_u='ph/s/0.1%', current=1):
+    def plot_folder_spectrum(self, folder, spectrum_type='bandwidth', energy_u='eV', flux_u='ph/s/0.1%', current=1, recursive_check=True):
         """
         Carrega e plota dados de espectro de vários arquivos em uma pasta.
 
@@ -117,6 +132,10 @@ class Espectros:
             energy_u (str, optional): Unidade de energia para a conversão/normalização. O padrão é 'eV'.
             flux_u (str, optional): Unidade de fluxo para a conversão/normalização. O padrão é 'ph/s/0.1%'.
             current (float, optional): Corrente da linha de luz. O padrão é 1.
+            recursive_check (bool, optional): flag para verificar se está em recursão, o que evita o plot
+
+        Returns:
+            dict: Dicionário de espéctros com chaves sendo o nome do arquivo e o valor sendo os dados do espectro normalizados.
         """
         if not os.path.isdir(folder):
             return
@@ -125,13 +144,23 @@ class Espectros:
         for file in sorted( os.listdir(folder) ):
             filepath = os.path.join(folder, file)
             data = self.get_spectrum_data(filepath)
+            if not data: continue
+
+            if os.path.isdir(filepath):
+                # Chama recursivamente para subpastas
+                espec.update(self.plot_folder_spectrum(filepath, spectrum_type, energy_u, flux_u, current, recursive_check=False))
+
             if spectrum_type == 'bandwidth':
                 data = self.bandwidth_to_energy(data, energy_u=energy_u, flux_u=flux_u, current=current)
             else:
                 data = self.normalize_spectrum(data, energy_u=energy_u, flux_u=flux_u, current=current)
             # print(sum(data[:,1]))
             espec[file] = data
-        self.plot_spectrum_data(espec, title=folder)
+
+        if espec and recursive_check:  # Verifica se há espectros para plotar
+            self.plot_spectrum_data(espec, title=folder)
+
+        return espec # Retorna os espectros encontrados
 
     def write_data_file(self, data, filename):
         """
