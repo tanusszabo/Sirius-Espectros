@@ -37,8 +37,7 @@ class Espectros:
             try:
                 spectrum_lines.append([float(l) for l in line.split()])
             except ValueError:
-                # print(f"Aviso: Linha inválida em {filename}: {line.strip()}")
-                return None  # Considera o arquivo inválido
+                continue
         
         if spectrum_lines:
             return np.array(spectrum_lines)
@@ -143,12 +142,13 @@ class Espectros:
         espec = {}
         for file in sorted( os.listdir(folder) ):
             filepath = os.path.join(folder, file)
-            data = self.get_spectrum_data(filepath)
-            if not data: continue
 
             if os.path.isdir(filepath):
                 # Chama recursivamente para subpastas
                 espec.update(self.plot_folder_spectrum(filepath, spectrum_type, energy_u, flux_u, current, recursive_check=False))
+
+            data = self.get_spectrum_data(filepath)
+            if data is None: continue
 
             if spectrum_type == 'bandwidth':
                 data = self.bandwidth_to_energy(data, energy_u=energy_u, flux_u=flux_u, current=current)
@@ -215,20 +215,22 @@ if __name__ == '__main__':
     espectros = Espectros()
 
     # Carregar dados de um arquivo
-    file = 'spectrum_data/Mogno/OPT/BC_spectrum_043x043_100mA.dat'
+    file = 'spectrum_data/Sussuarana/OPT/SUSSUARANA_SWLS_flux_1p58x0p66mrad2_lowE.txt'
     data = espectros.get_spectrum_data(file)
+    # Selecionando as colunas de energia e fluxo
+    # Necessário quando o fluxo não é a coluna de índice 1
+    data = data[:,[0,3]]
     # Converter dados de largura de banda para energia
-    data = espectros.bandwidth_to_energy(data, current=100, energy_u='eV', flux_u='ph/s/0.1%')
+    data = espectros.bandwidth_to_energy(data, current=100, energy_u='keV', flux_u='ph/s/0.1%')
     # Escrever dados em um arquivo
-    espectros.write_data_file(data, 'mogno.spectrum')
+    espectros.write_data_file(data, 'SUSSUARANA_SWLS_flux_1p58x0p66mrad2_lowE.spectrum')
 
 
     # --------------------------------------------
     # Plotar comparativo de espectros em uma pasta
     # --------------------------------------------
     espectros = Espectros()
-    espec = {}
 
     # Carregar dados de uma pasta
-    folder = 'spectrum_data/Hibisco/HIB_source_flux/CPMU14'
+    folder = 'spectrum_data/Hibisco/HIB_source_flux'
     data = espectros.plot_folder_spectrum(folder, spectrum_type='bandwidth', energy_u='eV', flux_u='ph/s/0.1%', current=100)
