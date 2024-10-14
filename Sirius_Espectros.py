@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.integrate import simps
 import os
 
 class Espectros:
@@ -174,10 +175,19 @@ class Espectros:
         max2 = max( max( [len(f'{d[1]}') for d in data] ), 14 )
         data_write = [f'{d[0]:>{max1}} {d[1]:>{max2}}\n' for d in data]
         with open(filename, 'w') as f:
-            f.write(f'{"#Energy (ev)":>{max1}} {"Flux (ph/s/mA)":>{max2}}\n')
+            f.write(f'{"#Energy (eV)":>{max1}} {"Flux (ph/s/mA)":>{max2}}\n')
             f.writelines(data_write)
-    
 
+    def integrate_spectrum(self, data, energy_u='eV', flux_u='ph/s/eV', current=100):
+        energy_data = data[:,0] * self.energy_unit[energy_u]
+        flux_ev_data = data[:,1] * self.flux_unit[flux_u] / current
+        integrated_spectrum = simps(y=flux_ev_data, x=energy_data)
+        return integrated_spectrum
+    
+    def integrate_discrete(self, data, flux_u='ph/s/eV', current=100):
+        flux_ev_data = data[:,1] * self.flux_unit[flux_u] / current
+        integrated_spectrum = sum(flux_ev_data)
+        return integrated_spectrum
 
         
 
@@ -234,3 +244,15 @@ if __name__ == '__main__':
     # Carregar dados de uma pasta
     folder = 'spectrum_data/Hibisco/HIB_source_flux'
     data = espectros.plot_folder_spectrum(folder, spectrum_type='bandwidth', energy_u='eV', flux_u='ph/s/0.1%', current=100)
+
+
+    # --------------------------------------------
+    # Pegar o fluxo integrado de um espectro
+    # --------------------------------------------
+    # Carregar dados de um arquivo
+    file = 'spectrum_data/Quati/OPT/optica/VS2/flux_Pt_2p25mrad_1p1X0p18mrad2.txt'
+    data = espectros.get_spectrum_data(file)
+    integrated_spectrum = espectros.integrate_spectrum(data, energy_u='eV', flux_u='ph/s/eV', current=100)
+    factor = 3600 * 500 * 1e-6 * 2
+    print(f'Espectro integrado: {integrated_spectrum:.4e}')
+    print(f'Fator: {integrated_spectrum:.4e}')
