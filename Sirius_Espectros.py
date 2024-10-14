@@ -163,19 +163,29 @@ class Espectros:
 
         return espec # Retorna os espectros encontrados
 
-    def write_data_file(self, data, filename):
+    def write_data_file(self, data, filename, energy_u='eV', flux_u='ph/s/eV', current=1, decimal_places=3):
         """
         Escreve os dados do espectro em um arquivo.
 
         Args:
             data (numpy.ndarray): Dados do espectro como um array numpy, onde a primeira coluna é a energia e a segunda é o fluxo.
             filename (str): Nome do arquivo para salvar os dados.
+            energy_u (str, optional): Unidade de energia para a conversão/normalização. O padrão é 'eV'.
+            flux_u (str, optional): Unidade de fluxo para a conversão/normalização. O padrão é 'ph/s/eV'.
+            current (float, optional): Corrente da linha de luz. O padrão é 1.
+            decial_places (int, optional): Casas decimais para a escrita dos valores de energia e fluxo. O padrão é 3
         """
-        max1 = max( max( [len(f'{d[0]}') for d in data] ), 12 )
-        max2 = max( max( [len(f'{d[1]}') for d in data] ), 14 )
-        data_write = [f'{d[0]:>{max1}} {d[1]:>{max2}}\n' for d in data]
+        energy_label = f"#Energy ({energy_u})"
+        flux_label = f"Flux ({flux_u}/{current}mA)"
+        energy_data = data[:,0] / self.energy_unit[energy_u]
+        flux_ev_data = data[:,1] * self.flux_unit[flux_u]*current
+
+        max1 = max( max( [len(f'{en}') for en in energy_data] ), len(energy_label) )
+        max2 = max( max( [len(f'{fl}') for fl in flux_ev_data] ), len(flux_label) )
+
+        data_write = [f'{en:>{max1}.{decimal_places}E} {fl:>{max2}.{decimal_places}E}\n' for en, fl in zip(energy_data, flux_ev_data)]
         with open(filename, 'w') as f:
-            f.write(f'{"#Energy (eV)":>{max1}} {"Flux (ph/s/mA)":>{max2}}\n')
+            f.write(f'{energy_label:>{max1}} {flux_label:>{max2}}\n')
             f.writelines(data_write)
 
     def integrate_spectrum(self, data, energy_u='eV', flux_u='ph/s/eV', current=100):
@@ -233,7 +243,7 @@ if __name__ == '__main__':
     # Converter dados de largura de banda para energia
     data = espectros.bandwidth_to_energy(data, current=100, energy_u='keV', flux_u='ph/s/0.1%')
     # Escrever dados em um arquivo
-    espectros.write_data_file(data, 'SUSSUARANA_SWLS_flux_1p58x0p66mrad2_lowE.spectrum')
+    espectros.write_data_file(data, 'SUSSUARANA_SWLS_flux_1p58x0p66mrad2_lowE.spectrum', energy_u='keV', current=100, decimal_places=5)
 
 
     # --------------------------------------------
